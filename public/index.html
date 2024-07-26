@@ -7,12 +7,14 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+    <div id="left-bar">
+        <input type="checkbox" id="edit-default">
+        <label for="edit-default">Edit Default</label>
+    </div>
+    <div id="sudoku" class="tab-content"></div>
     <div id="board-container">
         <canvas id="board" width="4000" height="4000"></canvas>
     </div>
-
-    <!-- <script src="three.js" type="module"></script> -->
-    <!-- <script src="render.js" type="module"></script> -->
-    <script src="sudoku.js" type="module"></script>
+    <script src="sudoku.js"></script>
 </body>
 </html>

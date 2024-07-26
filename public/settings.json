@@ -1,0 +1,17 @@
+{
+    "colors": {
+        "default": "black",
+        "value": "rgb(63,63,255)",
+        "highlight": "rgba(0,0,0,0.2)",
+        "highlight2": "rgba(0,0,0,0.35)",
+        "highlight3": "rgba(0,0,0,0.35)",
+
+        "default2": "black",
+        "value2": "rgb(63,63,255)",
+        
+        "default3": "black",
+        "value3": "rgb(255,0,0)"
+    },
+    "minorLineWidth": 20,
+    "majorLineWidth": 40
+}
