@@ -16,6 +16,7 @@ const arr = [
 const mode = {
     place: "value",
     currCell: {x: -1, y: -1}, //indices
+    currPuzzle: {}
 };
 
 async function loadJson(jsonFileUrl) {
@@ -205,6 +206,86 @@ function draw() {
     drawNumbers();
 }
 
+async function fetchChunk(url, start, end) {
+    const response = await fetch(url, {
+        headers: {
+        'Range': `bytes=${start}-${end}`
+        }
+    });
+
+    if (response.ok) {
+        const blob = await response.blob();
+        const text = await blob.text();
+        // Process the chunk of text here
+        return text;
+    } else {
+        console.error('Failed to fetch chunk:', response.status);
+    }
+}
+
+async function fetchSudoku(index) {
+    //35\n 81,81,~2,3\n
+    let step = 81+1+81+1+2+1+3+1;
+    let start = index * step + 36;
+    if (start<0) start = 0;
+    let end = start + step + 600 + 36;
+    let attempt;
+    let lines;
+    let line; //this is what we want
+    let indexFound=1;
+    for (let i = 0; i < 10; i++) {
+        attempt = await fetchChunk("sudoku-3m.csv", start, end);
+        lines = attempt.split('\n');
+        indexFound = Number(lines[1].split(',')[0])
+        if (indexFound === index) {
+            line = lines[1];
+            break;
+        }
+        let difference = index - Number(lines[1].split(',')[0]);
+        start += difference * step;
+        end += difference * step;
+    }
+    if (indexFound !== index) {
+        //in this case, we go back a bit, traverse the chunk,
+        //and if it's still not found, give up.
+        attempt = await fetchChunk("sudoku-3m.csv", start - 600, start);
+        lines = attempt.split('\n');
+        for (let i = 1; i < lines.length; i++) {
+            indexFound = Number(lines[i].split(',')[0]);
+            if (indexFound === index) {
+                line = lines[i];
+                break;
+            }
+        }
+        console.log("Cannot find sudoku");
+    }
+    return line.split(',');
+}
+
+async function setPuzzle(index) {
+    let puzzle = await fetchSudoku(index);
+    mode.currPuzzle.index = puzzle[0];
+    mode.currPuzzle.setup = puzzle[1];
+    mode.currPuzzle.solution = puzzle[2];
+    mode.currPuzzle.clues = puzzle[3];
+    mode.currPuzzle.rating = puzzle[4];
+    console.log(mode.currPuzzle);
+
+    for (let i = 0; i < 81; i++) {
+        let x = i % 9;
+        let y = Math.floor(i / 9);
+        let value;
+        if (mode.currPuzzle.setup[i] === '.') {
+            value = 0;
+        } else {
+            value = parseInt(mode.currPuzzle.setup[i]);
+        }
+        arr[y][x].default = value;
+        arr[y][x].value = value;
+    }
+    draw();
+}
+
 canvas.addEventListener('click', (event) => {
     const rect = canvas.getBoundingClientRect();
     const x = Math.floor((event.clientX - rect.left) / canvas.getBoundingClientRect().width*9);
@@ -236,6 +317,16 @@ document.addEventListener('keydown', (event) => {
         } else if (mode.place = 'default') {
             arr[mode.currCell.y][mode.currCell.x].default = parseInt(event.key);
             arr[mode.currCell.y][mode.currCell.x].value = parseInt(event.key);
+        }
+    }
+    if (event.key === 'delete' || event.key === 'Backspace') {
+        if (mode.place === 'value') {
+            if (arr[mode.currCell.y][mode.currCell.x].default === 0) {
+                arr[mode.currCell.y][mode.currCell.x].value = 0;
+            }
+        } else if (mode.place = 'default') {
+            arr[mode.currCell.y][mode.currCell.x].default = 0;
+            arr[mode.currCell.y][mode.currCell.x].value = 0;
         }
     }
     draw();
