@@ -1,2 +1,3 @@
 node_modules/
-sudoku-3m.csv
+public/sudoku-3m.csv
+.DS_Store
