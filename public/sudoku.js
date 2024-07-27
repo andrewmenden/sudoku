@@ -234,7 +234,7 @@ async function fetchSudoku(index) {
     let line; //this is what we want
     let indexFound=1;
     for (let i = 0; i < 10; i++) {
-        attempt = await fetchChunk("sudoku-3m.csv", start, end);
+        attempt = await fetchChunk("puzzles.csv", start, end);
         lines = attempt.split('\n');
         indexFound = Number(lines[1].split(',')[0])
         if (indexFound === index) {
@@ -248,7 +248,7 @@ async function fetchSudoku(index) {
     if (indexFound !== index) {
         //in this case, we go back a bit, traverse the chunk,
         //and if it's still not found, give up.
-        attempt = await fetchChunk("sudoku-3m.csv", start - 600, start);
+        attempt = await fetchChunk("puzzles.csv", start - 600, start);
         lines = attempt.split('\n');
         for (let i = 1; i < lines.length; i++) {
             indexFound = Number(lines[i].split(',')[0]);
