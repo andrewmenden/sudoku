@@ -6,8 +6,9 @@
 2. Open a command prompt where you want to install.
 3. `git clone https://github.com/andrewmenden/sudoku.git`
 4. `cd sudoku`
-5. `npm start`
-6. Go to your browser and open http://localhost:3000
+5. `npm install express`
+6. `npm start`
+7. Go to your browser and open http://localhost:3000
 
 **If you want puzzles**, you need to download a dataset. Currently only csv files formatted with id,puzzle,solution,clues,difficulty columns work (although it might be possible to get away with just id,puzzle,solution). I used [this](https://www.kaggle.com/datasets/radcliffe/3-million-sudoku-puzzles-with-ratings)
 
