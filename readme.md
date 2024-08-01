@@ -10,8 +10,10 @@
 6. `npm start`
 7. Go to your browser and open http://localhost:3000
 
-**If you want puzzles**, you need to download a dataset. Currently only csv files formatted with id,puzzle,solution,clues,difficulty columns work (although it might be possible to get away with just id,puzzle,solution). I used [this](https://www.kaggle.com/datasets/radcliffe/3-million-sudoku-puzzles-with-ratings)
+## Update
 
-Once you've downloaded the puzzles. Name the file "puzzles.csv" and put it inside the *public* folder.
-
-Unfortunately loading puzzles does not yet have any easy buttons to click, so you need to open the browser console and run `setPuzzle(5)` (replace 5 with any number 1 to 3,000,000 if you've downloaded the same file as me).
+1. Navigate to `.../sudoku/`
+2. `git pull`
+3. `npm install`
+4. `npm start`
+5. Go to your browser and open http://localhost:3000
