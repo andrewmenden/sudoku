@@ -11,14 +11,15 @@ class Sudoku {
             .then(res => res.json())
             .then(data => {
                 this.board = data.puzzle.map((value, index) => ({
-                    value,
-                    default: value !== null,
+                    value: (value === null) ? 0 : value+1,
+                    default: (value !== null),
                 }));
         });
     }
 
     set(row, col, value) {
-        this.board[row * 9 + col] = value;
+        if (this.board[row * 9 + col].default) return;
+        this.board[row * 9 + col].value = value;
     }
 
     get(row, col) {
@@ -30,15 +31,15 @@ class SudokuCanvas {
     constructor(sudoku, canvasElement) {
         this.sudoku = sudoku;
         this.colors = {
-            defaultColor: 'black',
-            errorColor: 'red',
-            valueColor: 'blue',
+            defaultColor: 'rgb(200,200,200)',
+            errorColor: 'rgb(255,0,0)',
+            valueColor: 'rgb(120,200,255)',
             
-            backgroundColor: 'rgba(0,0,0,0)',
-            selectedBackgroundColor: 'rgba(0,0,0,0.5)',
-            selectedBackgroundColor2: 'rgba(0,0,0,0.2)',
+            backgroundColor: 'rgb(12,12,12)',
+            selectedBackgroundColor: 'rgb(50,30,30)',
+            selectedBackgroundColor2: 'rgb(30,18,18)',
 
-            lineColor: 'black',
+            lineColor: 'rgb(150,150,150)',
         };
         this.style = {
             minorLineWidth: 10,
@@ -52,7 +53,9 @@ class SudokuCanvas {
     }
 
     draw() {
+        this.ctx.fillStyle = this.colors.backgroundColor;
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
         this.drawHighlights();
         this.drawGrid();
@@ -150,6 +153,18 @@ class SudokuCanvas {
         }
     }
 
+    drawHighlights() {
+        const { selectedCell } = this.mode;
+        const { backgroundColor, selectedBackgroundColor, selectedBackgroundColor2 } = this.colors;
+
+        if (selectedCell.row !== -1 && selectedCell.col !== -1) {
+            this.highlightRow(selectedCell.row, selectedBackgroundColor2);
+            this.highlightCol(selectedCell.col, selectedBackgroundColor2);
+            this.highlightBox(selectedCell.row, selectedCell.col, selectedBackgroundColor2);
+            this.highlightCell(selectedCell.row, selectedCell.col, selectedBackgroundColor);
+        }
+    }
+
     getCellBounds(row, col) {
         const { width, height } = canvas;
         const { minorLineWidth, majorLineWidth } = sudokuCanvas.style;
@@ -172,17 +187,6 @@ class SudokuCanvas {
         return { row, col };
     }
 
-    drawHighlights() {
-        const { selectedCell } = this.mode;
-        const { backgroundColor, selectedBackgroundColor, selectedBackgroundColor2 } = this.colors;
-
-        if (selectedCell.row !== -1 && selectedCell.col !== -1) {
-            this.highlightCell(selectedCell.row, selectedCell.col, selectedBackgroundColor);
-            this.highlightRow(selectedCell.row, selectedBackgroundColor2);
-            this.highlightCol(selectedCell.col, selectedBackgroundColor2);
-            this.highlightBox(selectedCell.row, selectedCell.col, selectedBackgroundColor2);
-        }
-    }
 }
 
 const sudoku = new Sudoku();
@@ -192,6 +196,29 @@ const sudokuCanvas = new SudokuCanvas(sudoku, canvas);
 canvas.addEventListener('click', (event) => {
     const { row, col } = sudokuCanvas.getCellByCoordinates(event.clientX, event.clientY);
     sudokuCanvas.mode.selectedCell = { row, col };
+    sudokuCanvas.draw();
+});
+
+document.addEventListener('keydown', (event) => {
+    if (sudokuCanvas.mode.selectedCell.row === -1 || sudokuCanvas.mode.selectedCell.col === -1) {
+        return;
+    }
+
+    const { key } = event;
+    if (key === 'ArrowLeft') {
+        sudokuCanvas.mode.selectedCell.col = (sudokuCanvas.mode.selectedCell.col - 1 + 9) % 9;
+    } else if (key === 'ArrowRight') {
+        sudokuCanvas.mode.selectedCell.col = (sudokuCanvas.mode.selectedCell.col + 1) % 9;
+    } else if (key === 'ArrowUp') {
+        sudokuCanvas.mode.selectedCell.row = (sudokuCanvas.mode.selectedCell.row - 1 + 9) % 9;
+    } else if (key === 'ArrowDown') {
+        sudokuCanvas.mode.selectedCell.row = (sudokuCanvas.mode.selectedCell.row + 1) % 9;
+    } else if (key >= '1' && key <= '9') {
+        sudoku.set(sudokuCanvas.mode.selectedCell.row, sudokuCanvas.mode.selectedCell.col, parseInt(key));
+    } else if (key === 'Backspace' || key === 'Delete') {
+        sudoku.set(sudokuCanvas.mode.selectedCell.row, sudokuCanvas.mode.selectedCell.col, 0);
+    }
+
     sudokuCanvas.draw();
 });
 
