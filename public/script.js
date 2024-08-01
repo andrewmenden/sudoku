@@ -1,9 +1,12 @@
+import { settings } from './settings.js';
+
 class Sudoku {
     constructor() {
         this.board = Array(81).fill({
             value: 0,
             default: false,
         });
+        this.incorrect = [];
     }
 
     generate() {
@@ -25,26 +28,59 @@ class Sudoku {
     get(row, col) {
         return this.board[row * 9 + col];
     }
+
+    getIndex(index) {
+        return this.board[index];
+    }
+
+    setIndex(index, value) {
+        this.board[index] = value;
+    }
+
+    updateIncorrect() {
+        this.incorrect = [];
+        for (let i = 0; i < 9; i++) {
+            for (let j = 0; j < 9; j++) {
+                if (this.checkCellIncorrect(i, j)) {
+                    this.setCellIncorrect(i, j);
+                }
+            }
+        }
+    }
+
+    checkCellIncorrect(row, col) {
+        const value = this.get(row, col).value;
+        if (value === 0) return false;
+        for (let i = 0; i < 9; i++) {
+            if (i !== col && this.get(row, i).value === value) return true;
+            if (i !== row && this.get(i, col).value === value) return true;
+        }
+        const boxRow = Math.floor(row / 3) * 3;
+        const boxCol = Math.floor(col / 3) * 3;
+        for (let i = boxRow; i < boxRow + 3; i++) {
+            for (let j = boxCol; j < boxCol + 3; j++) {
+                if (i === row && j === col) continue;
+                if (this.get(i, j).value === value) return true;
+            }
+        }
+        return false;
+    }
+
+    setIncorrect(incorrect) {
+        this.incorrect = incorrect;
+    }
+
+    setCellIncorrect(row, col) {
+        this.incorrect.push(row * 9 + col);
+    }
 }
 
 class SudokuCanvas {
     constructor(sudoku, canvasElement) {
         this.sudoku = sudoku;
-        this.colors = {
-            defaultColor: 'rgb(200,200,200)',
-            errorColor: 'rgb(255,0,0)',
-            valueColor: 'rgb(120,200,255)',
-            
-            backgroundColor: 'rgb(12,12,12)',
-            selectedBackgroundColor: 'rgb(50,30,30)',
-            selectedBackgroundColor2: 'rgb(30,18,18)',
-
-            lineColor: 'rgb(150,150,150)',
-        };
-        this.style = {
-            minorLineWidth: 10,
-            majorLineWidth: 20,
-        }
+        this.theme = settings.appearance.theme;
+        this.colors = settings.appearance.themes[this.theme].sudokuColors;
+        this.style = settings.appearance.sudokuProperties;
         this.mode = {
             selectedCell: {row: -1, col: -1},
         }
@@ -53,13 +89,14 @@ class SudokuCanvas {
     }
 
     draw() {
+        this.sudoku.updateIncorrect();
         this.ctx.fillStyle = this.colors.backgroundColor;
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
-        this.drawHighlights();
+        this.drawHighlights(this.sudoku.incorrect);
         this.drawGrid();
-        this.drawNumbers();
+        this.drawNumbers(this.sudoku.incorrect);
     }
 
     drawGrid() {
@@ -94,7 +131,7 @@ class SudokuCanvas {
         }
     }
 
-    drawNumbers() {
+    drawNumbers(markIncorrect = []) {
         const { ctx, canvas } = this;
         const { width, height } = canvas;
         const { defaultColor, errorColor, valueColor } = this.colors;
@@ -115,6 +152,14 @@ class SudokuCanvas {
                 if (curr.value === 0 || curr.value === null) continue;
                 const x = i * step + majorLineWidth / 2 + step/2;
                 const y = j * step + majorLineWidth / 2 + step/2;
+                if (curr.default) {
+                    ctx.fillStyle = defaultColor;
+                } else {
+                    ctx.fillStyle = valueColor;
+                }
+                if (markIncorrect.includes(j*9+i)) {
+                    ctx.fillStyle = errorColor;
+                }
                 ctx.fillText(curr.value, x, y);
             }
         }
@@ -153,7 +198,7 @@ class SudokuCanvas {
         }
     }
 
-    drawHighlights() {
+    drawHighlights(markIncorrect) {
         const { selectedCell } = this.mode;
         const { backgroundColor, selectedBackgroundColor, selectedBackgroundColor2 } = this.colors;
 
@@ -162,6 +207,13 @@ class SudokuCanvas {
             this.highlightCol(selectedCell.col, selectedBackgroundColor2);
             this.highlightBox(selectedCell.row, selectedCell.col, selectedBackgroundColor2);
             this.highlightCell(selectedCell.row, selectedCell.col, selectedBackgroundColor);
+        }
+        for (const mark of markIncorrect) {
+            const row = Math.floor(mark / 9);
+            const col = mark % 9;
+            if (this.sudoku.getIndex(mark).value === 0) continue;
+            if (!this.sudoku.getIndex(mark).default) continue;
+            this.highlightCell(row, col, this.colors.errorBackgroundColor);
         }
     }
 
@@ -186,7 +238,6 @@ class SudokuCanvas {
         if (row > 8) row = 8;
         return { row, col };
     }
-
 }
 
 const sudoku = new Sudoku();
@@ -225,4 +276,3 @@ document.addEventListener('keydown', (event) => {
 sudoku.generate().then(() => {
     sudokuCanvas.draw();
 });
-
