@@ -1,5 +1,9 @@
 import { settings } from './settings.js';
 
+window.post = function(url, data) {
+    return fetch(url, {method: "POST", headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data)});
+}
+
 class Sudoku {
     constructor() {
         this.board = Array(81).fill({
@@ -7,17 +11,26 @@ class Sudoku {
             default: false,
         });
         this.incorrect = [];
+        this.difficulty = 0;
+        this.data = Array(81).fill(null); //for use with the npm sudoku package
+        this.solution = Array(81).fill(null);
     }
 
-    generate() {
-        return fetch('/sudoku/generate')
-            .then(res => res.json())
-            .then(data => {
-                this.board = data.puzzle.map((value, index) => ({
-                    value: (value === null) ? 0 : value+1,
-                    default: (value !== null),
-                }));
-        });
+    async generate() {
+        let response = await fetch('/sudoku/generate');
+        let data = await response.json();
+        this.data = data.puzzle;
+        this.board = data.puzzle.map((value, index) => ({
+            value: (value === null) ? 0 : value+1,
+            default: (value !== null),
+        }));
+        response = await post('/sudoku/difficulty', { puzzle: this.data });
+        let difficulty = await response.json();
+        this.difficulty = difficulty.difficulty;
+
+        response = await post('/sudoku/solve', { puzzle: this.data });
+        let solution = await response.json();
+        this.solution = solution.solution.map((value) => (value+1));
     }
 
     set(row, col, value) {
@@ -212,7 +225,7 @@ class SudokuCanvas {
             const row = Math.floor(mark / 9);
             const col = mark % 9;
             if (this.sudoku.getIndex(mark).value === 0) continue;
-            if (!this.sudoku.getIndex(mark).default) continue;
+            if (this.sudoku.getIndex(mark).default) continue;
             this.highlightCell(row, col, this.colors.errorBackgroundColor);
         }
     }
@@ -276,3 +289,4 @@ document.addEventListener('keydown', (event) => {
 sudoku.generate().then(() => {
     sudokuCanvas.draw();
 });
+
