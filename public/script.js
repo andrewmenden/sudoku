@@ -38,6 +38,13 @@ class Sudoku {
         this.board[row * 9 + col].value = value;
     }
 
+    indexToRowCol(index) {
+        return {
+            row: Math.floor(index / 9),
+            col: index % 9,
+        };
+    }
+
     get(row, col) {
         return this.board[row * 9 + col];
     }
@@ -97,6 +104,7 @@ class SudokuCanvas {
         this.mode = {
             selectedCell: {row: -1, col: -1},
         }
+        this.preferences = settings.preferences;
         this.canvas = canvasElement;
         this.ctx = canvasElement.getContext('2d');
     }
@@ -107,7 +115,11 @@ class SudokuCanvas {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
-        this.drawHighlights(this.sudoku.incorrect);
+        if (this.preferences.highlightMode === 0) {
+            this.drawHighlights(this.sudoku.incorrect);
+        } else if (this.preferences.highlightMode === 1) {
+            this.drawHighlights2(this.sudoku.incorrect);
+        }
         this.drawGrid();
         this.drawNumbers(this.sudoku.incorrect);
     }
@@ -179,6 +191,26 @@ class SudokuCanvas {
         ctx.fillStyle = 'black';
     }
 
+    drawPencilMarkAt(row, col, values) {
+        const { ctx, canvas } = this;
+        const { width, height } = canvas;
+        const { minorLineWidth, majorLineWidth } = this.style;
+        const cellSize = width / 9;
+
+        ctx.fillStyle = this.colors.pencilColor1;
+        ctx.font = `${cellSize * 0.25}px Lucida Console Regular`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        const step = (width-majorLineWidth) / 9;
+        for (let i = 0; i < values.length; i++) {
+            const x = col * step + majorLineWidth + 5*step/6;
+            const y = row * step + majorLineWidth + 5*step/6;
+            ctx.fillText(values[i], x, y);
+        }
+        ctx.fillStyle
+    }
+
     highlightCell(row, col, color) {
         const { ctx, canvas } = this;
         ctx.fillStyle = color;
@@ -211,6 +243,7 @@ class SudokuCanvas {
         }
     }
 
+    //draws selected cell hits
     drawHighlights(markIncorrect) {
         const { selectedCell } = this.mode;
         const { backgroundColor, selectedBackgroundColor, selectedBackgroundColor2 } = this.colors;
@@ -228,6 +261,31 @@ class SudokuCanvas {
             if (this.sudoku.getIndex(mark).default) continue;
             this.highlightCell(row, col, this.colors.errorBackgroundColor);
         }
+    }
+
+    //draws all numbers and what they hit
+    drawHighlights2(markIncorrect) {
+        //find all selected numbers
+        const { row, col } = this.mode.selectedCell;
+        if (row === -1 || col === -1) {
+            return;
+        }
+        const value = this.sudoku.get(row, col).value;
+        if (value === 0 || value === null) {
+            this.drawHighlights(markIncorrect);
+            return;
+        }
+        for (let i = 0; i < 81; i++) {
+            const { row: r, col: c } = this.sudoku.indexToRowCol(i);
+            if (this.sudoku.get(r, c).value === value) {
+                this.highlightRow(r, this.colors.selectedBackgroundColor4);
+                this.highlightCol(c, this.colors.selectedBackgroundColor4);
+                this.highlightBox(r, c, this.colors.selectedBackgroundColor4);
+                this.highlightCell(r,c, this.colors.selectedBackgroundColor3);
+            }
+        }
+
+        this.drawHighlights(markIncorrect);
     }
 
     getCellBounds(row, col) {
@@ -288,5 +346,6 @@ document.addEventListener('keydown', (event) => {
 
 sudoku.generate().then(() => {
     sudokuCanvas.draw();
+    sudokuCanvas.drawPencilMarkAt(0, 0, [1]);
 });
 
