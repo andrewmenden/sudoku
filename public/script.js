@@ -103,7 +103,7 @@ class SudokuCanvas {
         this.style = settings.appearance.sudokuProperties;
         this.mode = {
             selectedCell: {row: -1, col: -1},
-            pencilMode: 'center' //corners, center, none
+            pencilMode: 'none' //corners, center, none
         }
         this.pencils = {
             //index: {valuesCorner: arr9, valuesCenter: arr9}
@@ -111,7 +111,37 @@ class SudokuCanvas {
         this.preferences = settings.preferences;
         this.canvas = canvasElement;
         this.ctx = canvasElement.getContext('2d');
+        this.pencilMarksLocations = settings.preferences.pencilMarksLocations;
         this.pencilMarksLocationsA = settings.preferences.pencilMarksLocationsA;
+    }
+
+    setDigit(row, col, digit) {
+        if (this.sudoku.get(row, col).default) return;
+        if (this.mode.pencilMode === 'none') {
+            this.sudoku.set(row, col, digit);
+            this.removeAllPencilMarks(row, col);
+            if (this.preferences.updatePencilMarks) {
+                this.updatePencilMarks({row, col, value: digit});
+            }
+        } else {
+            this.addPencilMark(row, col, digit);
+        }
+    }
+
+    //placedDigit {row, col, value}
+    updatePencilMarks(placedDigit) {
+        for (const [index, cell] of Object.entries(this.pencils)) {
+            const row = Math.floor(index / 9);
+            const col = index % 9;
+            if (row === placedDigit.row || col === placedDigit.col) {
+                this.removePencilMark(row, col, placedDigit.value);
+            }
+            const boxRow = Math.floor(placedDigit.row / 3) * 3;
+            const boxCol = Math.floor(placedDigit.col / 3) * 3;
+            if (row >= boxRow && row < boxRow + 3 && col >= boxCol && col < boxCol + 3) {
+                this.removePencilMark(row, col, placedDigit.value, 'both');
+            }
+        }
     }
 
     draw() {
@@ -214,11 +244,22 @@ class SudokuCanvas {
 
         const step = (width-majorLineWidth) / 9;
         for (let i = 0; i < values.length; i++) {
-            const x = col * step + this.pencilMarksLocationsA.x[i] * (step-minorLineWidth*2) + majorLineWidth;
-            const y = row * step + this.pencilMarksLocationsA.y[i] * (step-minorLineWidth*2) + majorLineWidth;
+            const x = col * step + this.decidePencilMarkLocation(row,col).x[i] * (step-minorLineWidth*2) + majorLineWidth;
+            const y = row * step + this.decidePencilMarkLocation(row,col).y[i] * (step-minorLineWidth*2) + majorLineWidth;
             ctx.fillText(values[i], x, y);
         }
         ctx.fillStyle
+    }
+
+    decidePencilMarkLocation(row, col) {
+        if (this.pencils[row*9+col] === undefined) {
+            return this.pencilMarksLocations;
+        }
+        if (this.pencils[row*9+col].valuesCorner.length > 3 &&
+            this.pencils[row*9+col].valuesCenter.length > 4) {
+            return this.pencilMarksLocationsA;
+        }
+        return this.pencilMarksLocations;
     }
 
     drawCenterPencilMarksAt(row, col, values) {
@@ -267,11 +308,20 @@ class SudokuCanvas {
         }
     }
 
-    removePencilMark(row, col, value) {
+    removePencilMark(row, col, value, mode = 'use-mode') {
+        let compare;
+        if (mode === 'use-mode') {
+            compare = this.mode.pencilMode;
+        } else {
+            compare = mode;
+        }
         if (this.pencils[row*9+col] === undefined) return;
-        if (this.mode.pencilMode === 'corners') {
+        if (compare === 'corners') {
             this.pencils[row*9+col].valuesCorner = this.pencils[row*9+col].valuesCorner.filter(v => v !== value);
-        } else if (this.mode.pencilMode === 'center') {
+        } else if (compare === 'center') {
+            this.pencils[row*9+col].valuesCenter = this.pencils[row*9+col].valuesCenter.filter(v => v !== value);
+        } else if (compare === 'both') {
+            this.pencils[row*9+col].valuesCorner = this.pencils[row*9+col].valuesCorner.filter(v => v !== value);
             this.pencils[row*9+col].valuesCenter = this.pencils[row*9+col].valuesCenter.filter(v => v !== value);
         }
 
@@ -424,17 +474,10 @@ document.addEventListener('keydown', (event) => {
     } else if (key === 'ArrowDown') {
         sudokuCanvas.mode.selectedCell.row = (sudokuCanvas.mode.selectedCell.row + 1) % 9;
     } else if (key >= '1' && key <= '9') {
-        if (sudokuCanvas.mode.pencilMode === 'none') {
-            sudoku.set(sudokuCanvas.mode.selectedCell.row, sudokuCanvas.mode.selectedCell.col, parseInt(key));
-        } else {
-            sudokuCanvas.addPencilMark(sudokuCanvas.mode.selectedCell.row, sudokuCanvas.mode.selectedCell.col, parseInt(key));
-        }
+        sudokuCanvas.setDigit(sudokuCanvas.mode.selectedCell.row, sudokuCanvas.mode.selectedCell.col, parseInt(key));
     } else if (key === 'Backspace' || key === 'Delete') {
-        if (sudokuCanvas.mode.pencilMode === 'none') {
-            sudoku.set(sudokuCanvas.mode.selectedCell.row, sudokuCanvas.mode.selectedCell.col, 0);
-        } else {
-            sudokuCanvas.removeAllPencilMarks(sudokuCanvas.mode.selectedCell.row, sudokuCanvas.mode.selectedCell.col);
-        }
+        sudoku.set(sudokuCanvas.mode.selectedCell.row, sudokuCanvas.mode.selectedCell.col, 0);
+        sudokuCanvas.removeAllPencilMarks(sudokuCanvas.mode.selectedCell.row, sudokuCanvas.mode.selectedCell.col);
     } else if (key === 'q') {
         sudokuCanvas.mode.pencilMode = 'corners';
     } else if (key === 'w') {

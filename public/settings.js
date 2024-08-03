@@ -32,9 +32,15 @@ export const settings = {
         //2: highlight all numbers
         //3: highlight all numbers excluding selected cell hits 
         highlightMode: 1,
+        pencilMarksLocations: {
+            x: [1/8, 4/8, 7/8, 1/8, 2/8, 7/8, 1/8, 4/8, 7/8],
+            y: [1/8, 1/8, 1/8, 4/8, 2/8, 4/8, 7/8, 7/8, 7/8]
+        },
+        //if there's no room for the default location (defined above)
         pencilMarksLocationsA: {
             x: [1/8, 1/3, 2/3, 7/8, 1/8, 1/4, 2/4, 3/4, 7/8],
             y: [1/6, 1/8, 1/8, 1/6, 5/6, 7/8, 7/8, 7/8, 5/6]
-        }
+        },
+        updatePencilMarks: true
     }
 }
