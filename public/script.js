@@ -103,10 +103,15 @@ class SudokuCanvas {
         this.style = settings.appearance.sudokuProperties;
         this.mode = {
             selectedCell: {row: -1, col: -1},
+            pencilMode: 'center' //corners, center, none
+        }
+        this.pencils = {
+            //index: {valuesCorner: arr9, valuesCenter: arr9}
         }
         this.preferences = settings.preferences;
         this.canvas = canvasElement;
         this.ctx = canvasElement.getContext('2d');
+        this.pencilMarksLocationsA = settings.preferences.pencilMarksLocationsA;
     }
 
     draw() {
@@ -121,6 +126,7 @@ class SudokuCanvas {
             this.drawHighlights2(this.sudoku.incorrect);
         }
         this.drawGrid();
+        this.drawPencilMarks();
         this.drawNumbers(this.sudoku.incorrect);
     }
 
@@ -191,24 +197,106 @@ class SudokuCanvas {
         ctx.fillStyle = 'black';
     }
 
-    drawPencilMarkAt(row, col, values) {
+    drawCornerPencilMarksAt(row, col, values) {
+        if (values.length === 0) return;
+        if (this.sudoku.get(row, col).default) return;
+        if (this.sudoku.get(row, col).value !== 0) return;
+
         const { ctx, canvas } = this;
         const { width, height } = canvas;
         const { minorLineWidth, majorLineWidth } = this.style;
         const cellSize = width / 9;
 
         ctx.fillStyle = this.colors.pencilColor1;
-        ctx.font = `${cellSize * 0.25}px Lucida Console Regular`;
+        ctx.font = `${cellSize / 6}px Lucida Console Regular`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
 
         const step = (width-majorLineWidth) / 9;
         for (let i = 0; i < values.length; i++) {
-            const x = col * step + majorLineWidth + 5*step/6;
-            const y = row * step + majorLineWidth + 5*step/6;
+            const x = col * step + this.pencilMarksLocationsA.x[i] * (step-minorLineWidth*2) + majorLineWidth;
+            const y = row * step + this.pencilMarksLocationsA.y[i] * (step-minorLineWidth*2) + majorLineWidth;
             ctx.fillText(values[i], x, y);
         }
         ctx.fillStyle
+    }
+
+    drawCenterPencilMarksAt(row, col, values) {
+        if (values.length === 0) return;
+        if (this.sudoku.get(row, col).default) return;
+        if (this.sudoku.get(row, col).value !== 0) return;
+
+        const { ctx, canvas } = this;
+        const { width, height } = canvas;
+        const { minorLineWidth, majorLineWidth } = this.style;
+        const cellSize = width / 9;
+
+        ctx.fillStyle = this.colors.pencilColor2;
+        ctx.font = `${cellSize / 6}px Lucida Console Regular`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        const step = (width-majorLineWidth) / 9;
+        let string = '';
+        for (let i = 0; i < values.length; i++) {
+            string += values[i];
+        }
+        const x = col * step + step/2;
+        const y = row * step + step/2;
+        ctx.fillText(string, x, y);
+    }
+
+    addPencilMark(row, col, value) {
+        if (this.pencils[row*9+col] === undefined) {
+            this.pencils[row*9+col] = {valuesCorner: [], valuesCenter: []};
+        }
+        if (this.mode.pencilMode === 'corners') {
+            if (this.pencils[row*9+col].valuesCorner.includes(value)) {
+                this.removePencilMark(row, col, value);
+                return;
+            }
+            this.pencils[row*9+col].valuesCorner.push(value);
+            this.pencils[row*9+col].valuesCorner.sort((a, b) => a > b);
+        } else  if (this.mode.pencilMode === 'center') {
+            if (this.pencils[row*9+col].valuesCenter.includes(value)) {
+                this.removePencilMark(row, col, value);
+                return;
+            }
+            this.pencils[row*9+col].valuesCenter.push(value);
+            this.pencils[row*9+col].valuesCenter.sort((a, b) => a > b);
+        }
+    }
+
+    removePencilMark(row, col, value) {
+        if (this.pencils[row*9+col] === undefined) return;
+        if (this.mode.pencilMode === 'corners') {
+            this.pencils[row*9+col].valuesCorner = this.pencils[row*9+col].valuesCorner.filter(v => v !== value);
+        } else if (this.mode.pencilMode === 'center') {
+            this.pencils[row*9+col].valuesCenter = this.pencils[row*9+col].valuesCenter.filter(v => v !== value);
+        }
+
+        if (this.pencils[row*9+col].valuesCorner.length === 0 && this.pencils[row*9+col].valuesCenter.length === 0) {
+            delete this.pencils[row*9+col];
+        }
+    }
+
+    removeAllPencilMarks(row, col) {
+        delete this.pencils[row*9+col];
+    }
+
+    drawPencilMarks() {
+        for (let i = 0; i < 9; i++)
+        {
+            for (let j = 0; j < 9; j++)
+            {
+                if (this.sudoku.get(i, j).value === 0) {
+                    if (this.pencils[i*9+j] !== undefined) {
+                        this.drawCornerPencilMarksAt(i, j, this.pencils[i*9+j].valuesCorner);
+                        this.drawCenterPencilMarksAt(i, j, this.pencils[i*9+j].valuesCenter);
+                    }
+                }
+            }
+        }
     }
 
     highlightCell(row, col, color) {
@@ -336,9 +424,23 @@ document.addEventListener('keydown', (event) => {
     } else if (key === 'ArrowDown') {
         sudokuCanvas.mode.selectedCell.row = (sudokuCanvas.mode.selectedCell.row + 1) % 9;
     } else if (key >= '1' && key <= '9') {
-        sudoku.set(sudokuCanvas.mode.selectedCell.row, sudokuCanvas.mode.selectedCell.col, parseInt(key));
+        if (sudokuCanvas.mode.pencilMode === 'none') {
+            sudoku.set(sudokuCanvas.mode.selectedCell.row, sudokuCanvas.mode.selectedCell.col, parseInt(key));
+        } else {
+            sudokuCanvas.addPencilMark(sudokuCanvas.mode.selectedCell.row, sudokuCanvas.mode.selectedCell.col, parseInt(key));
+        }
     } else if (key === 'Backspace' || key === 'Delete') {
-        sudoku.set(sudokuCanvas.mode.selectedCell.row, sudokuCanvas.mode.selectedCell.col, 0);
+        if (sudokuCanvas.mode.pencilMode === 'none') {
+            sudoku.set(sudokuCanvas.mode.selectedCell.row, sudokuCanvas.mode.selectedCell.col, 0);
+        } else {
+            sudokuCanvas.removeAllPencilMarks(sudokuCanvas.mode.selectedCell.row, sudokuCanvas.mode.selectedCell.col);
+        }
+    } else if (key === 'q') {
+        sudokuCanvas.mode.pencilMode = 'corners';
+    } else if (key === 'w') {
+        sudokuCanvas.mode.pencilMode = 'center';
+    } else if (key === 'e') {
+        sudokuCanvas.mode.pencilMode = 'none';
     }
 
     sudokuCanvas.draw();
@@ -346,6 +448,5 @@ document.addEventListener('keydown', (event) => {
 
 sudoku.generate().then(() => {
     sudokuCanvas.draw();
-    sudokuCanvas.drawPencilMarkAt(0, 0, [1]);
 });
 
